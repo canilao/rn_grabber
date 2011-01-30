@@ -11,6 +11,7 @@ namespace LearningMono
 	{	
 		public static void ParseIt()
 		{
+			// This parses the idfpr website for license information.
 			HtmlDocument doc = new HtmlDocument();
  
 			doc.Load("/home/chris/Temp/a_results.htm");
@@ -67,9 +68,11 @@ namespace LearningMono
 			
 			myReq.GetResponse();
 			
+			// This is the code cookie key that idfpr.com sends the session code with.
 			var sessionCodeKey = "ASPSESSIONIDCCQSCRCA";
 			string sessionCode = null;
 			
+			// Find our cookie.
 			foreach (Cookie c in cookieJar.GetCookies(myReq.RequestUri))
 			{
 				if(c.Name == sessionCodeKey)
