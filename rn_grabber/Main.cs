@@ -8,26 +8,32 @@ using System.Web;
 using System.Text;
 using HtmlAgilityPack;
 
-namespace LearningMono
+namespace RNGrabber
 {
 	class MainClass
 	{	
-		public static void ParseIt()
+		public static void ParseIt(string htmlData)
 		{
 			// This parses the idfpr website for license information.
 			HtmlDocument doc = new HtmlDocument();
  
-			doc.Load("/home/chris/Temp/a_results.htm");
+			var textReader = new StringReader(htmlData);
+			doc.Load(textReader);
 
 			var xpathStr = "/html/body//td[@class='tmpl_menuover'] | /html/body//td[@class='tmpl_tabbackgroundcolor']";
 			
 			var tds = doc.DocumentNode.SelectNodes(xpathStr);
 			
+			if(tds == null) throw new Exception("No Data Found");
+			
 			List<string> outStr = new List<string>();
 			
 			foreach(var node in tds)
  			{	
-				outStr.Add(node.InnerText);
+				// The DBA / AKA has a &nbsp in it, remove it if it exists.
+				var fixedText = node.InnerText.Replace("&nbsp", "");
+				
+				outStr.Add(fixedText);
 				
 				if(outStr.Count >= 8)
 				{
@@ -41,8 +47,6 @@ namespace LearningMono
 					outStr.Clear();
 				}
  			}
-
-			doc.Save("/home/chris/Temp/anilao_search_post.html");
 		}
 		
 		public static string GetSessionKey()
@@ -89,7 +93,7 @@ namespace LearningMono
 			return sessionCode;
 		}
 		
-		public static void SearchForNurses(string sessionKey, string seachString)
+		public static string SearchForNurses(int maxRows, string sessionKey, string searchString)
 		{
 			// POST /dpr/licenselookup/results.asp HTTP/1.1
 			// Host: www.idfpr.com
@@ -109,7 +113,7 @@ namespace LearningMono
 			
 			HttpWebRequest myReq = (HttpWebRequest) WebRequest.Create("http://www.idfpr.com/dpr/licenselookup/results.asp");
 			
-			string postData = "TYPE=NAME&pro_cde=0041&lnme=Anilao&checkbox=on&finit=&rowcount=5000&submit1.x=43&submit1.y=8";
+			string postData = "TYPE=NAME&pro_cde=0041&lnme=" + searchString + "&checkbox=on&finit=&rowcount=" + maxRows + "&submit1.x=43&submit1.y=8";
 			byte[] byteArray = Encoding.UTF8.GetBytes(postData);
 			
 			myReq.Method = "POST";
@@ -132,17 +136,94 @@ namespace LearningMono
 			
 			WebResponse response = myReq.GetResponse();
 			
-			Console.WriteLine(((HttpWebResponse)response).StatusDescription);
-			
 			dataStream = response.GetResponseStream();
             StreamReader reader = new StreamReader(dataStream);
-            string responseFromServer = reader.ReadToEnd();
-            Console.WriteLine(responseFromServer);
+            
+			return reader.ReadToEnd();
+		}
+		
+		public static List<String> FindAllPageLinks(string htmlData)
+		{
+			// This parses the idfpr website for license information.
+			HtmlDocument doc = new HtmlDocument();
+ 
+			var textReader = new StringReader(htmlData);
+			doc.Load(textReader);
+			
+			var retList = new List<String>();
+			
+			foreach(HtmlNode link in doc.DocumentNode.SelectNodes("//a[@href]"))
+			{
+				foreach(var attrib in link.Attributes)
+				{	
+					if(!retList.Contains(attrib.Value) && attrib.Value.Contains("results.asp?page="))
+					{
+						retList.Add(attrib.Value);
+					}
+				}
+			}
+			
+			return retList;
+		}
+		
+		public static string FollowALink(string uri, string sessionKey)
+		{
+			HttpWebRequest myReq = (HttpWebRequest) WebRequest.Create("http://www.idfpr.com/dpr/licenselookup/" + uri);
+			
+			myReq.UserAgent = "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.2.13) Gecko/20101206 Ubuntu/10.10 (maverick) Firefox/3.6.13";
+			myReq.Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+			myReq.Headers.Add("Accept-Language", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+			myReq.Headers.Add("Accept-Encoding", "gzip,deflate");
+			myReq.Headers.Add("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.7");
+			myReq.Referer = "http://www.idfpr.com/dpr/licenselookup/results.asp";
+			myReq.Headers.Add("Keep-Alive", "115");
+			myReq.KeepAlive = true;
+			myReq.CookieContainer = new CookieContainer();
+			Cookie c = new Cookie("ASPSESSIONIDCABRCRTC", sessionKey, "/", "http://www.idfpr.com");
+			myReq.CookieContainer.Add(c);
+			
+			var response = myReq.GetResponse();
+							
+			var dataStream = response.GetResponseStream();
+            StreamReader reader = new StreamReader(dataStream);
+            
+			return reader.ReadToEnd();
 		}
 		
 		public static void Main(string[] args)
 		{		
-			SearchForNurses(GetSessionKey(), "anilao");
+			var theKey = GetSessionKey();
+			
+			Console.WriteLine("Attempting to get data from server...");
+			
+			var htmlData = SearchForNurses(1000, theKey, "a");
+			
+			Console.WriteLine("Attempting parse all of the links...");
+			
+			var linkList = FindAllPageLinks(htmlData);
+			
+			Console.WriteLine("Data from server retrieved, attempting to parse " + htmlData.Length.ToString() + " characters...");
+			
+			foreach(var parsedLink in linkList) Console.WriteLine(parsedLink);
+			
+			Console.WriteLine("Parsing html data...");
+			
+			ParseIt(htmlData);
+			
+			foreach(string link in linkList)
+			{
+				Console.WriteLine("Following link " + link + "...");
+				
+				var htmlDataFromLink = FollowALink(link, theKey);
+				
+				Console.WriteLine("Data from server retrieved, attempting to parse " + htmlDataFromLink.Length.ToString() + " characters...");
+				
+				ParseIt(htmlDataFromLink);
+			}
+			
+			Console.WriteLine("Data from server retrieved, attempting to parse " + htmlData.Length.ToString() + " characters...");
+		
+			ParseIt(htmlData);
 		}
 	}
 }
