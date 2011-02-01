@@ -7,6 +7,7 @@ using System.Xml;
 using System.Web;
 using System.Text;
 using HtmlAgilityPack;
+using MySql.Data.MySqlClient;
 
 namespace RNGrabber
 {
@@ -32,6 +33,9 @@ namespace RNGrabber
  			{	
 				// The DBA / AKA has a &nbsp in it, remove it if it exists.
 				var fixedText = node.InnerText.Replace("&nbsp", "");
+				
+				// Check to see if it is a button, if the nurse was disciplined, they use a button with a Y on it.
+				if(node.InnerText.Contains("disc.asp")) fixedText = "Y";
 				
 				outStr.Add(fixedText);
 				
@@ -190,8 +194,39 @@ namespace RNGrabber
 			return reader.ReadToEnd();
 		}
 		
+		public static void test()
+		{
+			string MyConString = "SERVER=localhost;" + "DATABASE=IDFPR_RN_Records;" + "UID=root;" + "PASSWORD=ceejay1;";
+			
+			MySqlConnection connection = new MySqlConnection(MyConString);
+		    
+			connection.Open();
+			
+			MySqlCommand command = connection.CreateCommand();
+			
+			command.CommandText = "select * from Registered_Nurses";
+			
+			MySqlDataReader Reader;
+			
+			Reader = command.ExecuteReader();
+			
+			/*
+			while (Reader.Read())
+			{
+				string thisrow = "";
+				for (int i= 0;i<Reader.FieldCount;i++)
+						thisrow+=Reader.GetValue(i).ToString() + ",";
+				listBox1.Items.Add(thisrow);
+			}
+			*/
+			
+			connection.Close();
+		}
+		
 		public static void Main(string[] args)
 		{		
+			test();
+			
 			var theKey = GetSessionKey();
 			
 			Console.WriteLine("Attempting to get data from server...");
