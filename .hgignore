@@ -1,1 +1,3 @@
 glob:rn_grabber/bin
+glob:*.pidb
+glob:*.userprefs
