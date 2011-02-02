@@ -13,6 +13,10 @@ namespace RNGrabber
 {
 	class MainClass
 	{	
+		public static MySqlConnection connection = new MySqlConnection("SERVER=localhost;" + "DATABASE=IDFPR_RN_Records;" + "UID=root;" + "PASSWORD=ceejay1;");
+		
+		public static string theKey = GetSessionKey();
+		
 		public static void ParseIt(string htmlData)
 		{
 			// This parses the idfpr website for license information.
@@ -37,16 +41,43 @@ namespace RNGrabber
 				// Check to see if it is a button, if the nurse was disciplined, they use a button with a Y on it.
 				if(node.InnerText.Contains("disc.asp")) fixedText = "Y";
 				
+				// Check to see if the IDFPR_Ever_Disciplined == </form>
+				if(node.InnerText.Contains("</form>")) fixedText = "Y";
+				
 				outStr.Add(fixedText);
 				
 				if(outStr.Count >= 8)
-				{
+				{				
+					MySqlCommand command = connection.CreateCommand();
+			
+					command.CommandText = "INSERT INTO Registered_Nurses(IDFPR_License_Name,IDFPR_DBA_AKA,IDFPR_RN_License_Number,IDFPR_License_Status,IDFPR_City_State,IDFPR_Original_Issue_Date,IDFPR_Expiration_Date,IDFPR_Ever_Disciplined) VALUES(";
+					
 					foreach(var dataStr in outStr)
 					{
-						System.Console.Write(dataStr + " ");
+						// Sanitize apostrophes.
+						var clean = dataStr.Replace("'", "''");
+						
+						command.CommandText += "'" + clean + "'" + ",";
 					}
 					
-					System.Console.WriteLine();
+					command.CommandText = command.CommandText.Remove(command.CommandText.LastIndexOf(','), 1);
+					command.CommandText += ")";
+					
+					// Sometimes they put an space for empty license numbers.
+					if(outStr[2] == " ")
+					{
+						command.CommandText = command.CommandText.Replace("Registered_Nurses", "RN_Empty_License");
+					}
+					
+					try
+					{
+						command.ExecuteNonQuery();
+					}
+					catch(Exception e)
+					{
+						Console.WriteLine(e.Message);
+						Console.WriteLine(command.CommandText);
+					}
 					
 					outStr.Clear();
 				}
@@ -193,24 +224,12 @@ namespace RNGrabber
             
 			return reader.ReadToEnd();
 		}
-		
-		public static void test()
-		{
-			string MyConString = "SERVER=localhost;" + "DATABASE=IDFPR_RN_Records;" + "UID=root;" + "PASSWORD=ceejay1;";
-			
-			MySqlConnection connection = new MySqlConnection(MyConString);
-		    
-			connection.Open();
-			
-			MySqlCommand command = connection.CreateCommand();
-			
-			command.CommandText = "select * from Registered_Nurses";
-			
+
+			/*
 			MySqlDataReader Reader;
 			
 			Reader = command.ExecuteReader();
 			
-			/*
 			while (Reader.Read())
 			{
 				string thisrow = "";
@@ -219,19 +238,12 @@ namespace RNGrabber
 				listBox1.Items.Add(thisrow);
 			}
 			*/
-			
-			connection.Close();
-		}
 		
-		public static void Main(string[] args)
-		{		
-			test();
-			
-			var theKey = GetSessionKey();
-			
+		public static void GrabIt(string search)
+		{				
 			Console.WriteLine("Attempting to get data from server...");
 			
-			var htmlData = SearchForNurses(1000, theKey, "a");
+			var htmlData = SearchForNurses(1000, theKey, search);
 			
 			Console.WriteLine("Attempting parse all of the links...");
 			
@@ -255,10 +267,40 @@ namespace RNGrabber
 				
 				ParseIt(htmlDataFromLink);
 			}
-			
-			Console.WriteLine("Data from server retrieved, attempting to parse " + htmlData.Length.ToString() + " characters...");
+		}
 		
-			ParseIt(htmlData);
+		public static void Main(string[] args)
+		{
+			connection.Open();
+			
+			GrabIt("a");
+			GrabIt("b");
+			GrabIt("c");
+			GrabIt("d");
+			GrabIt("e");
+			GrabIt("f");
+			GrabIt("g");
+			GrabIt("h");
+			GrabIt("i");
+			GrabIt("j");
+			GrabIt("k");
+			GrabIt("l");
+			GrabIt("m");
+			GrabIt("n");
+			GrabIt("o");
+			GrabIt("p");
+			GrabIt("q");
+			GrabIt("r");
+			GrabIt("s");
+			GrabIt("t");
+			GrabIt("u");
+			GrabIt("v");
+			GrabIt("w");
+			GrabIt("x");
+			GrabIt("y");
+			GrabIt("z");
+			
+			connection.Close();
 		}
 	}
 }
