@@ -10,7 +10,49 @@ namespace RNGrabber
 
       private RNDataRow(MySqlConnection connection) { theConnection = connection; }
 
-      private void ParseDataList(List<String> list) { }
+      private void ParseDataList(List<String> list) 
+      {
+         int i = 0;
+
+         foreach (var dataElement in list)
+         {
+            switch (i++)
+            {
+               case 0:
+                  IDFPR_License_Name = dataElement;
+                  break;
+               case 1:
+                  IDFPR_DBA_AKA = dataElement;
+                  break;
+               case 2:
+                  IDFPR_RN_License_Number = dataElement;
+                  break;
+               case 3:
+                  IDFPR_License_Status = dataElement;
+                  break;
+               case 4:
+                  char[] delimiters = { ',' };
+                  var elements = dataElement.Split(delimiters);
+
+                  if (elements.Length >= 2)
+                  {
+                     IDFPR_City = elements[0].Trim();
+                     IDFPR_State = elements[1].Trim();
+                  }
+
+                  break;
+               case 5:
+                  IDFPR_Original_Issue_Date = DateTime.Parse(dataElement);
+                  break;
+               case 6:
+                  IDFPR_Expiration_Date = DateTime.Parse(dataElement);
+                  break;
+               case 7:
+                  IDFPR_Ever_Disciplined = dataElement == "Y" ? true : false;
+                  break;
+            }
+         }
+      }
 
       private string IDFPR_License_Name { get; set; }
 
@@ -40,6 +82,10 @@ namespace RNGrabber
 
       public void InsertIntoDataBase()
       {
+         var sp = " ";
+
+         Console.WriteLine(IDFPR_License_Name + sp + IDFPR_DBA_AKA + sp + IDFPR_RN_License_Number + sp + IDFPR_License_Status + sp + IDFPR_City + sp + IDFPR_State + sp + IDFPR_Original_Issue_Date + sp + IDFPR_Expiration_Date + sp + IDFPR_Ever_Disciplined);
+
          // This needs to check to see if the data exists, if not then its ok to add, otherwise throw an exception.
          /*
          MySqlCommand command = connection.CreateCommand();
