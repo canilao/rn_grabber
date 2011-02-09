@@ -9,10 +9,9 @@ namespace RNGrabber
       static void Main(string[] args)
       {
          // Make an SQL connection.
-         // var connection = new MySqlConnection("SERVER=localhost;" + "DATABASE=IDFPR_RN_Records;" + "UID=root;" + "PASSWORD=ceejay1;");
-         MySqlConnection connection = null;
+         var connection = new MySqlConnection("SERVER=localhost;" + "DATABASE=IDFPR_RN_Records;" + "UID=root;" + "PASSWORD=ceejay1;");
 
-         // connection.Open();
+         connection.Open();
 
          IDFPRScrapper scrapper;
 
@@ -34,7 +33,7 @@ namespace RNGrabber
             Logger.Log(e.Message);
          }
 
-         // connection.Close();
+         connection.Close();
       }
    }
 }

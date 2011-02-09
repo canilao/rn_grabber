@@ -42,10 +42,24 @@ namespace RNGrabber
 
                   break;
                case 5:
-                  IDFPR_Original_Issue_Date = DateTime.Parse(dataElement);
+                  try
+                  {
+                     IDFPR_Original_Issue_Date = DateTime.Parse(dataElement);
+                  }
+                  catch
+                  {
+                     IDFPR_Original_Issue_Date = new DateTime(0);
+                  }
                   break;
                case 6:
-                  IDFPR_Expiration_Date = DateTime.Parse(dataElement);
+                  try
+                  {
+                     IDFPR_Expiration_Date = DateTime.Parse(dataElement);
+                  }
+                  catch
+                  {
+                     IDFPR_Expiration_Date = new DateTime(0);
+                  }
                   break;
                case 7:
                   IDFPR_Ever_Disciplined = dataElement == "Y" ? true : false;
@@ -82,24 +96,42 @@ namespace RNGrabber
 
       public void InsertIntoDataBase()
       {
-         var sp = " ";
+         // Create the command object.
+         MySqlCommand command = theConnection.CreateCommand();
 
-         Console.WriteLine(IDFPR_License_Name + sp + IDFPR_DBA_AKA + sp + IDFPR_RN_License_Number + sp + IDFPR_License_Status + sp + IDFPR_City + sp + IDFPR_State + sp + IDFPR_Original_Issue_Date + sp + IDFPR_Expiration_Date + sp + IDFPR_Ever_Disciplined);
+         // If the RN is DECEASED check for the data in a different table.
+         if(IDFPR_License_Status == "DECEASED")
+         {           
+            command.CommandText = "INSERT INTO RN_Empty_License(IDFPR_License_Name,IDFPR_DBA_AKA,IDFPR_RN_License_Number,IDFPR_License_Status,IDFPR_City,IDFPR_State,IDFPR_Original_Issue_Date,IDFPR_Expiration_Date,IDFPR_Ever_Disciplined) VALUES(";
+         }
+         else
+         {
+            command.CommandText = "INSERT INTO Registered_Nurses(IDFPR_License_Name,IDFPR_DBA_AKA,IDFPR_RN_License_Number,IDFPR_License_Status,IDFPR_City,IDFPR_State,IDFPR_Original_Issue_Date,IDFPR_Expiration_Date,IDFPR_Ever_Disciplined) VALUES(";
+         }
 
-         // This needs to check to see if the data exists, if not then its ok to add, otherwise throw an exception.
-         /*
-         MySqlCommand command = connection.CreateCommand();
-
-         command.CommandText = "INSERT INTO Registered_Nurses(IDFPR_License_Name,IDFPR_DBA_AKA,IDFPR_RN_License_Number,IDFPR_License_Status,IDFPR_City_State,IDFPR_Original_Issue_Date,IDFPR_Expiration_Date,IDFPR_Ever_Disciplined) VALUES(";
-
+         var outStr = new List<string>();
+            
+         outStr.Add(IDFPR_License_Name);
+         outStr.Add(IDFPR_DBA_AKA);
+         outStr.Add(IDFPR_RN_License_Number);
+         outStr.Add(IDFPR_License_Status);
+         outStr.Add(IDFPR_City);
+         outStr.Add(IDFPR_State);
+         outStr.Add(IDFPR_Original_Issue_Date.ToString("yyyy-MM-dd"));
+         outStr.Add(IDFPR_Expiration_Date.ToString("yyyy-MM-dd"));
+         outStr.Add(IDFPR_Ever_Disciplined ? "1" : "0");
+ 
+         // Build the rest of the SQL statement.
+         foreach(var dataStr in outStr)
+         {
+            // Sanitize apostrophes.
+            var clean = dataStr.Replace("'", "''");
+         
+            command.CommandText += "'" + clean + "'" + ",";
+         }
+            
          command.CommandText = command.CommandText.Remove(command.CommandText.LastIndexOf(','), 1);
          command.CommandText += ")";
-
-         // Sometimes they put an space for empty license numbers, usually for Deceased.
-         if(outStr[2] == " ")
-         {
-            command.CommandText = command.CommandText.Replace("Registered_Nurses", "RN_Empty_License");
-         }
 
          try
          {
@@ -107,12 +139,49 @@ namespace RNGrabber
          }
          catch(Exception e)
          {
-            LogEvent(e.Message);
-            LogEvent(command.CommandText);
+            Logger.Log(e.Message);
+            Logger.Log(command.CommandText);
          }
-          */
       }
 
-      public bool IsUnique() { return true; }
+      public bool IsUnique() 
+      {
+         // This needs to check to see if the data exists, if not then its ok to add, otherwise throw an exception.
+         MySqlCommand command = theConnection.CreateCommand();
+
+         // If the RN is DECEASED check for the data in a different table.
+         if(IDFPR_License_Status == "DECEASED")
+         {           
+            command.CommandText = "SELECT COUNT( * ) AS NumberFound FROM RN_Empty_License WHERE IDFPR_License_Name='" + IDFPR_License_Name + "'";  
+         }
+         else
+         {
+            command.CommandText = "SELECT COUNT( * ) AS NumberFound FROM Registered_Nurses WHERE IDFPR_RN_License_Number='" + IDFPR_RN_License_Number + "'";
+         }
+
+         MySqlDataReader reader = null;
+         
+         try
+         {
+             reader = command.ExecuteReader();
+         }
+         catch(Exception e)
+         {
+            Logger.Log(e.Message);
+            Logger.Log(command.CommandText);
+         }
+            
+         int theCount = 0;
+         
+         while(reader.Read()) 
+         {
+            theCount = int.Parse(reader["NumberFound"].ToString());
+         }  
+            
+         // Make sure the reader is closed.
+         reader.Close();
+            
+         return theCount == 0; 
+      }
    }
 }
